@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "objects_to_store": {
+      "type": "array",
+      "items": [
+        {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "The path of the file or directory to store to S3 as an object"
+            },
+            "objectName": {
+              "type": "string",
+              "description": "The name of the object that will appear in S3",
+              "default": "The name of the path with / converted to _"
+            },
+            "StorageClass": {
+              "enum": ["STANDARD", "STANDARD_IA", "GLACIER", "DEEP_ARCHIVE"],
+              "description": "The storage class to use for the backup. Different storage classes have different properties in S3, including a miminum storage period. To save money on backups we don't override a backup until the minimum storage period is passed. This means that for more sentitive objects you need either use different storage classes or use the force option",
+              "default": "DEEP_ARCHIVE"
+            },
+            "force": {
+              "type": "boolean",
+              "description": "Whether to force upload of this even if less time has passed than the minimum storage time of the storage class"
+            }
+          },
+          "required": [
+            "path"
+          ]
+        }
+      ]
+    }
+  },
+  "required": [
+    "objects_to_store"
+  ]
+}

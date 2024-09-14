@@ -1,0 +1,6 @@
+config.json
+backup-demon.bat
+temp/*
+venv/
+.idea/
+__pycache__/
