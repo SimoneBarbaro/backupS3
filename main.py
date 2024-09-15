@@ -1,9 +1,12 @@
 import argparse
+import glob
 import json
 import os
 import shutil
 from datetime import datetime as dt
 from datetime import timedelta
+from zipfile import ZipFile
+
 from jsonschema import validate
 
 import boto3
@@ -37,6 +40,33 @@ def upload_file_to_s3(file_name, bucket, s3_client, object_name, storage_class="
                               )
     except ClientError as e:
         print(e)
+
+
+def upload_multplie_folders_as_zip(folder_paths, bucket, s3_client, object_name, storage_class):
+    """
+    Save a folder as zip
+    :param folder_paths: list of paths to zip
+    :param bucket: bucket where to save backup
+    :param s3_client: client to use for saving
+    :param object_name: name to give to the backup file
+    :param storage_class: storage class to save object to
+    """
+    output_path = os.path.join("temp", object_name)
+    if not output_path.endswith(".zip"):
+        output_path = output_path + ".zip"
+    with ZipFile(output_path, 'w') as zipf:
+        for pattern in folder_paths:
+            for path in glob.glob(pattern):
+                if os.path.isdir(path):
+                    for root, dirs, files in os.walk(path):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            arcname = os.path.relpath(file_path, start=path + "/../../")
+                            zipf.write(file_path, arcname)
+                else:
+                    zipf.write(path, os.path.relpath(path, start=path + "/../"))
+    upload_file_to_s3(output_path, bucket, s3_client, object_name, storage_class)
+    os.remove(output_path)
 
 
 def upload_folder_as_zip(folder_path, bucket, s3_client, object_name, storage_class):
@@ -85,7 +115,10 @@ def execute_backup_from_config(bucket, object_config, s3_client):
         return
     print(f"storing {object_config} to {bucket}")
 
-    path = object_config["path"]
+    path = object_config.get("path", object_config.get("paths", None))
+    if path is None:
+        print("Invalid path found")
+        return
     if "objectName" not in object_config:
         if isinstance(path, list):
             print(f"ERROR, can't use list of paths without giving an object name")
@@ -106,7 +139,7 @@ def execute_backup_from_config(bucket, object_config, s3_client):
         else:
             raise e
     if isinstance(path, list):
-        last_modified = min([dt.fromtimestamp(get_latest_modification_time(p)) for p in path])
+        last_modified = max([dt.fromtimestamp(get_latest_modification_time(p)) for p in path])
     elif os.path.isdir(path):
         last_modified = dt.fromtimestamp(get_latest_modification_time(path))
     else:
@@ -120,20 +153,23 @@ def execute_backup_from_config(bucket, object_config, s3_client):
         print(f"Latest upload too recent, skipping. Force with force option in config")
         return
     if isinstance(path, list):
-        print("ERROR list path not implemented yet")
-        return
+        upload_multplie_folders_as_zip(
+            path, bucket, s3_client, object_name, object_config.get("StorageClass", "DEEP_ARCHIVE"))
     elif os.path.isdir(path):
-        upload_folder_as_zip(path, bucket, s3_client, object_name, object_config.get("StorageClass", "DEEP_ARCHIVE"))
+        upload_folder_as_zip(
+            path, bucket, s3_client, object_name, object_config.get("StorageClass", "DEEP_ARCHIVE"))
     else:
-        upload_file_to_s3(path, bucket, s3_client, object_name, object_config.get("StorageClass", "DEEP_ARCHIVE"))
+        upload_file_to_s3(
+            path, bucket, s3_client, object_name, object_config.get("StorageClass", "DEEP_ARCHIVE"))
 
 
 def main():
     parser = argparse.ArgumentParser(
         prog='MyBackupS3',
         description='Stores backups to S3')
-    parser.add_argument('--config-file', type=str,
-                        help='config of the backups, it must contain an object formatted as the schema config-schema.json')
+    parser.add_argument(
+        '--config-file', type=str,
+        help='config of the backups, it must contain an object formatted as the schema config-schema.json')
 
     bucket = os.environ.get("BUCKET")
     access_key, secret_key = os.environ.get("AWS_ACCESS_KEY"), os.environ.get("AWS_SECRET_KEY")
