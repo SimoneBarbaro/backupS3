@@ -4,8 +4,7 @@
   "properties": {
     "objects_to_store": {
       "type": "array",
-      "items": [
-        {
+      "items": {
           "type": "object",
           "properties": {
             "path": {
@@ -31,7 +30,6 @@
             "path"
           ]
         }
-      ]
     }
   },
   "required": [

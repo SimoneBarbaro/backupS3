@@ -4,6 +4,7 @@ import os
 import shutil
 from datetime import datetime as dt
 from datetime import timedelta
+from jsonschema import validate
 
 import boto3
 from botocore.exceptions import ClientError
@@ -146,6 +147,9 @@ def main():
     args = parser.parse_args()
     with open(args.config_file, "r", encoding='utf-8') as f:
         config = json.loads(" ".join(f.readlines()))
+    with open("config-schema.json", "r", encoding='utf-8') as f:
+        config_schema = json.loads(" ".join(f.readlines()))
+    validate(config, config_schema)
     for object_config in config["objects_to_store"]:
         execute_backup_from_config(bucket, object_config, s3_client)
 
