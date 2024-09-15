@@ -61,7 +61,7 @@ def upload_multplie_folders_as_zip(folder_paths, bucket, s3_client, object_name,
                     for root, dirs, files in os.walk(path):
                         for file in files:
                             file_path = os.path.join(root, file)
-                            arcname = os.path.relpath(file_path, start=path + "/../../")
+                            arcname = os.path.relpath(file_path, start=path + "/../")
                             zipf.write(file_path, arcname)
                 else:
                     zipf.write(path, os.path.relpath(path, start=path + "/../"))
