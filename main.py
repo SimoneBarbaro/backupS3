@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import glob
 import json
 import os
@@ -135,7 +136,7 @@ def execute_backup_from_config(bucket, object_config, s3_client):
         print(f"Found previous backup in date {last_upload}")
     except ClientError as e:
         if e.response["Error"]["Code"] == '404':
-            print("Object not found, proceeding with first upload")
+            print(f"Previous backup of object not found")
         else:
             raise e
     if isinstance(path, list):
@@ -145,7 +146,7 @@ def execute_backup_from_config(bucket, object_config, s3_client):
     else:
         last_modified = dt.fromtimestamp(os.path.getmtime(path))
     print(f"Found latest changes in date {last_modified}")
-    if last_modified > last_upload + TIMEDELTA_BY_STORAGE_CLASS[object_config.get("StorageClass", "DEEP_ARCHIVE")]:
+    if last_modified > last_upload and (datetime.datetime.now() > last_upload + TIMEDELTA_BY_STORAGE_CLASS[object_config.get("StorageClass", "DEEP_ARCHIVE")]):
         print(f"Latest change > last backup, proceeding to upload")
     elif object_config.get("force", False) and last_modified > last_upload:
         print("Latest upload too recent, but found command to force reload, proceeding to upload")
