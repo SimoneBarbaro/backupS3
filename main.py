@@ -82,7 +82,7 @@ def upload_folder_as_zip(folder_path, bucket, s3_client, object_name, storage_cl
     output_path = os.path.join("temp", object_name)
     if not output_path.endswith(".zip"):
         output_path = output_path + ".zip"
-    shutil.make_archive(output_path, 'zip', folder_path, verbose=True)
+    shutil.make_archive(output_path.replace(".zip", ""), 'zip', folder_path, verbose=True)
 
     upload_file_to_s3(output_path, bucket, s3_client, object_name, storage_class)
     os.remove(output_path)
